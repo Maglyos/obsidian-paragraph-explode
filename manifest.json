@@ -1,0 +1,10 @@
+{
+	"id": "paragraph-explode",
+	"name": "Paragraph Explode",
+	"version": "1.0.0",
+	"minAppVersion": "1.2.3",
+	"description": "Explode a paragraph into sentences and reorder them with clicks.",
+	"author": "Maglyos",
+	"authorUrl": "https://github.com/Maglyos",
+	"isDesktopOnly": false
+}

@@ -1,0 +1,101 @@
+.paragraph-explode-modal {
+	width: min(900px, 92vw);
+}
+
+.paragraph-explode-columns {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--size-4-4);
+}
+
+@media (max-width: 600px) {
+	.paragraph-explode-columns {
+		grid-template-columns: 1fr;
+	}
+}
+
+.paragraph-explode-column h4 {
+	margin: 0 0 var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	text-transform: uppercase;
+}
+
+.paragraph-explode-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-12);
+	padding: var(--size-4-2);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+}
+
+.paragraph-explode-row {
+	display: flex;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-3);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	user-select: none;
+}
+
+.paragraph-explode-row:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.paragraph-explode-num {
+	flex: 0 0 var(--size-4-5);
+	color: var(--text-accent);
+	font-weight: var(--font-semibold);
+	text-align: right;
+}
+
+.paragraph-explode-text {
+	flex: 1 1 auto;
+	color: var(--text-normal);
+	line-height: var(--line-height-normal);
+}
+
+.paragraph-explode-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-4);
+}
+
+.paragraph-explode-aside {
+	margin-top: var(--size-4-4);
+}
+
+.paragraph-explode-hidden {
+	display: none;
+}
+
+.paragraph-explode-aside .paragraph-explode-row {
+	opacity: 0.75;
+}
+
+.paragraph-explode-aside-button {
+	flex: 0 0 auto;
+	align-self: flex-start;
+	height: auto;
+	padding: var(--size-2-1) var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.paragraph-explode-keep {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
