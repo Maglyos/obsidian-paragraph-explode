@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, SettingDefinition, SettingDefinitionItem } from 'obsidian';
 import type ParagraphExplodePlugin from './main';
 import { DEFAULT_PHRASE_WORDS, parseWordList } from './splitter';
 
@@ -33,98 +33,141 @@ export class ParagraphExplodeSettingTab extends PluginSettingTab {
 		super(app, plugin);
 	}
 
-	display(): void {
-		const { containerEl } = this;
+	/** Obsidian 1.13+: rendered and searched declaratively. */
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return [
+			{
+				type: 'group',
+				heading: 'Sentences',
+				items: [
+					{
+						name: 'Extra abbreviations',
+						desc: 'Words that end in a period but never end a sentence, such as "gov" or "approx". Separate with commas. Common ones (e.g., et al., Fig., vs.) are built in.',
+						control: { type: 'textarea', key: 'extraAbbreviations', placeholder: 'Gov, approx' },
+					},
+				],
+			},
+			{
+				type: 'group',
+				heading: 'Phrases',
+				items: [
+					{
+						name: 'Split at punctuation',
+						desc: 'Start a new phrase after a comma, semicolon or colon.',
+						control: { type: 'toggle', key: 'splitAtPunctuation' },
+					},
+					{
+						name: 'Split at conjunction words',
+						desc: 'Start a new phrase before words like "and", "but" and "because".',
+						control: { type: 'toggle', key: 'splitAtWords' },
+					},
+					{
+						name: 'Conjunction words',
+						desc: 'Words that start a new phrase. Separate with commas.',
+						control: { type: 'textarea', key: 'phraseWords' },
+					},
+					{
+						name: 'Restore the default words',
+						desc: 'Reset the conjunction words to the built-in list.',
+						action: () => {
+							this.plugin.settings.phraseWords = [...DEFAULT_PHRASE_WORDS];
+							void this.plugin.saveSettings();
+							// update() exists from Obsidian 1.13; older versions re-render via display().
+							(this as { update?: () => void }).update?.();
+						},
+					},
+				],
+			},
+			{
+				type: 'group',
+				heading: 'Reorder window',
+				items: [
+					{
+						name: 'Set-aside sentences',
+						desc: 'What happens to sentences you set aside when you apply. You can change this in the window each time.',
+						control: {
+							type: 'dropdown',
+							key: 'setAsideDefault',
+							options: { delete: 'Delete them', keep: 'Keep them below as a separate paragraph' },
+						},
+					},
+					{
+						name: 'Enter key applies',
+						desc: 'Which format is used when you confirm from the keyboard after placing every sentence.',
+						control: {
+							type: 'dropdown',
+							key: 'enterApplies',
+							options: { paragraph: 'As a normal paragraph', exploded: 'One sentence per line' },
+						},
+					},
+				],
+			},
+		];
+	}
+
+	getControlValue(key: string): unknown {
+		const value: unknown = this.plugin.settings[key as keyof ParagraphExplodeSettings];
+		return Array.isArray(value) ? value.join(', ') : value;
+	}
+
+	async setControlValue(key: string, value: unknown): Promise<void> {
 		const settings = this.plugin.settings;
+		if (key === 'phraseWords' || key === 'extraAbbreviations') {
+			settings[key] = parseWordList(String(value));
+		} else if (key === 'setAsideDefault') {
+			settings.setAsideDefault = value === 'keep' ? 'keep' : 'delete';
+		} else if (key === 'enterApplies') {
+			settings.enterApplies = value === 'exploded' ? 'exploded' : 'paragraph';
+		} else if (key === 'splitAtPunctuation' || key === 'splitAtWords') {
+			settings[key] = value === true;
+		}
+		await this.plugin.saveSettings();
+	}
+
+	/** Fallback for Obsidian before 1.13, which ignores getSettingDefinitions(). */
+	display(): void {
+		this.renderLegacyTab();
+	}
+
+	private renderLegacyTab(): void {
+		const { containerEl } = this;
 		containerEl.empty();
+		for (const item of this.getSettingDefinitions()) {
+			if (!('type' in item) || item.type !== 'group') continue;
+			if (item.heading) new Setting(containerEl).setName(item.heading).setHeading();
+			for (const def of item.items ?? []) {
+				if ('name' in def) this.renderLegacy(def);
+			}
+		}
+	}
 
-		new Setting(containerEl).setName('Sentences').setHeading();
-
-		new Setting(containerEl)
-			.setName('Extra abbreviations')
-			.setDesc(
-				'Words that end in a period but never end a sentence, such as "gov" or "approx". Separate with commas. Common ones (e.g., et al., Fig., vs.) are built in.',
-			)
-			.addTextArea((area) =>
+	private renderLegacy(def: SettingDefinition): void {
+		const setting = new Setting(this.containerEl).setName(def.name).setDesc(def.desc ?? '');
+		const { control } = def;
+		if (!control) {
+			setting.addButton((button) =>
+				button.setButtonText('Restore').onClick(() => {
+					def.action?.(button.buttonEl, 0);
+					this.renderLegacyTab();
+				}),
+			);
+			return;
+		}
+		const value = this.getControlValue(control.key);
+		const save = (next: unknown) => void this.setControlValue(control.key, next);
+		if (control.type === 'toggle') {
+			setting.addToggle((toggle) => toggle.setValue(value === true).onChange(save));
+		} else if (control.type === 'dropdown') {
+			setting.addDropdown((dropdown) =>
+				dropdown.addOptions(control.options).setValue(String(value)).onChange(save),
+			);
+		} else if (control.type === 'textarea') {
+			setting.addTextArea((area) =>
 				area
-					.setPlaceholder('Gov, approx')
-					.setValue(settings.extraAbbreviations.join(', '))
-					.onChange(async (value) => {
-						settings.extraAbbreviations = parseWordList(value);
-						await this.plugin.saveSettings();
-					}),
+					.setPlaceholder(control.placeholder ?? '')
+					.setValue(String(value))
+					.onChange(save),
 			);
-
-		new Setting(containerEl).setName('Phrases').setHeading();
-
-		new Setting(containerEl)
-			.setName('Split at punctuation')
-			.setDesc('Start a new phrase after a comma, semicolon or colon.')
-			.addToggle((toggle) =>
-				toggle.setValue(settings.splitAtPunctuation).onChange(async (value) => {
-					settings.splitAtPunctuation = value;
-					await this.plugin.saveSettings();
-				}),
-			);
-
-		new Setting(containerEl)
-			.setName('Split at conjunction words')
-			.setDesc('Start a new phrase before words like "and", "but" and "because".')
-			.addToggle((toggle) =>
-				toggle.setValue(settings.splitAtWords).onChange(async (value) => {
-					settings.splitAtWords = value;
-					await this.plugin.saveSettings();
-				}),
-			);
-
-		new Setting(containerEl)
-			.setName('Conjunction words')
-			.setDesc('Words that start a new phrase. Separate with commas.')
-			.addTextArea((area) =>
-				area.setValue(settings.phraseWords.join(', ')).onChange(async (value) => {
-					settings.phraseWords = parseWordList(value);
-					await this.plugin.saveSettings();
-				}),
-			)
-			.addExtraButton((button) =>
-				button
-					.setIcon('reset')
-					.setTooltip('Restore the default words')
-					.onClick(async () => {
-						settings.phraseWords = [...DEFAULT_PHRASE_WORDS];
-						await this.plugin.saveSettings();
-						this.display();
-					}),
-			);
-
-		new Setting(containerEl).setName('Reorder window').setHeading();
-
-		new Setting(containerEl)
-			.setName('Set-aside sentences')
-			.setDesc('What happens to sentences you set aside when you apply. You can change this in the window each time.')
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption('delete', 'Delete them')
-					.addOption('keep', 'Keep them below as a separate paragraph')
-					.setValue(settings.setAsideDefault)
-					.onChange(async (value) => {
-						settings.setAsideDefault = value === 'keep' ? 'keep' : 'delete';
-						await this.plugin.saveSettings();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName('Enter key applies')
-			.setDesc('Which format is used when you confirm from the keyboard after placing every sentence.')
-			.addDropdown((dropdown) =>
-				dropdown
-					.addOption('paragraph', 'As a normal paragraph')
-					.addOption('exploded', 'One sentence per line')
-					.setValue(settings.enterApplies)
-					.onChange(async (value) => {
-						settings.enterApplies = value === 'exploded' ? 'exploded' : 'paragraph';
-						await this.plugin.saveSettings();
-					}),
-			);
+		}
 	}
 }
