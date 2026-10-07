@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting, SettingDefinition, SettingDefinitionItem } from 'obsidian';
 import type ParagraphExplodePlugin from './main';
+import type { Mode } from './outline';
 import { DEFAULT_PHRASE_WORDS, parseWordList } from './splitter';
 
 export interface ParagraphExplodeSettings {
@@ -12,8 +13,8 @@ export interface ParagraphExplodeSettings {
 	extraAbbreviations: string[];
 	/** What the reorder window does with set-aside sentences by default. */
 	setAsideDefault: 'delete' | 'keep';
-	/** What pressing Enter in the reorder window applies. */
-	enterApplies: 'paragraph' | 'exploded';
+	/** The mode the reorder window opens in. */
+	defaultMode: Mode;
 }
 
 export const DEFAULT_SETTINGS: ParagraphExplodeSettings = {
@@ -22,7 +23,7 @@ export const DEFAULT_SETTINGS: ParagraphExplodeSettings = {
 	phraseWords: [...DEFAULT_PHRASE_WORDS],
 	extraAbbreviations: [],
 	setAsideDefault: 'delete',
-	enterApplies: 'paragraph',
+	defaultMode: 'paragraph',
 };
 
 export class ParagraphExplodeSettingTab extends PluginSettingTab {
@@ -92,12 +93,12 @@ export class ParagraphExplodeSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: 'Enter key applies',
-						desc: 'Which format is used when you confirm from the keyboard after placing every sentence.',
+						name: 'Default mode',
+						desc: 'How the window writes the result when it opens. You can switch modes inside the window.',
 						control: {
 							type: 'dropdown',
-							key: 'enterApplies',
-							options: { paragraph: 'As a normal paragraph', exploded: 'One sentence per line' },
+							key: 'defaultMode',
+							options: { paragraph: 'Paragraph', sentence: 'Sentence lines', notes: 'Notes (bullet list)' },
 						},
 					},
 				],
@@ -116,8 +117,8 @@ export class ParagraphExplodeSettingTab extends PluginSettingTab {
 			settings[key] = parseWordList(String(value));
 		} else if (key === 'setAsideDefault') {
 			settings.setAsideDefault = value === 'keep' ? 'keep' : 'delete';
-		} else if (key === 'enterApplies') {
-			settings.enterApplies = value === 'exploded' ? 'exploded' : 'paragraph';
+		} else if (key === 'defaultMode') {
+			settings.defaultMode = value === 'sentence' || value === 'notes' ? value : 'paragraph';
 		} else if (key === 'splitAtPunctuation' || key === 'splitAtWords') {
 			settings[key] = value === true;
 		}

@@ -17,10 +17,28 @@ Run these from the command palette. Each works on your selection if you have one
 
 ## The reorder window
 
-- **Remaining** (left): click a sentence to add it to the **New order** (right). Click a sentence in the new order to send it back.
-- **Set aside**: each remaining sentence has a *Set aside* button. Set-aside sentences can be clicked to bring them back. When you apply, they are either deleted or kept below the new text as a separate paragraph.
-- **Apply** replaces the original with the new order as a normal paragraph. **Apply as exploded** puts one sentence per line. **Reset** starts over. **Cancel** closes the window.
-- Keyboard: keys `1`-`9` pick the remaining sentence with that number, `Backspace` undoes the last pick, `Enter` applies once everything is placed or set aside, `Esc` cancels.
+Pick pieces from **Remaining** to build the **New order**, then Apply. A **Preview** shows exactly what will be written.
+
+**Modes** (switch at the top of the window at any time, nothing is lost):
+
+| Mode | Output |
+| --- | --- |
+| **Paragraph** | All pieces joined into one paragraph. |
+| **Sentence lines** | One piece per line. |
+| **Notes** | A bullet list. Pieces can be grouped into notes and indented into sub-points. |
+
+**Building the order**
+- Click a piece to add it, or drag its handle (`⋮⋮`) into the New order at the position you want.
+- Drag items in the New order to reorder them. Drag one back onto *Remaining*, or press *Put back*.
+- *Set aside* parks a piece. Set-aside pieces can be clicked to bring them back, and are deleted or kept below the result when you apply.
+
+**Notes mode**
+- *Group*: select items (click, Shift+click for a range, Cmd/Ctrl+click to add) and merge them into one note. *Ungroup* splits them again.
+- *New note*: press it (or `N`), then click pieces. They all join one note. Press `N` again to start the next note, and twice to stop.
+- *Indent* / *Outdent* (`Tab` / `Shift+Tab`) move the selected notes one level at a time, up to six levels deep. The first bullet, and the first bullet after a heading, always stays at the top level. Output uses one tab per level.
+- *H1*, *H2*, *H3* (or `H` to cycle) turn the selected items into `#`, `##` or `###` headings, and *Bullet* turns them back. Headings are written without a bullet. They only appear in Notes mode; in the other modes they are written as normal text.
+
+**Keys**: `1`-`9` pick the remaining piece with that number; `Backspace` undoes the last change; `Enter` applies; `Esc` cancels; `N`, `G`, `U`, `H`, `Tab`, `Shift+Tab` for notes as above; `Alt+Up` / `Alt+Down` move the selected item.
 
 ## What it protects
 
@@ -36,7 +54,7 @@ Headings, code blocks, tables, frontmatter, lists and quotes are skipped with a 
 
 - **Extra abbreviations**: words ending in a period that should never end a sentence.
 - **Phrases**: toggle splitting at punctuation and at conjunction words, and edit the word list.
-- **Reorder window**: whether set-aside sentences are deleted or kept by default, and whether Enter applies as a paragraph or as one sentence per line.
+- **Reorder window**: the mode the window opens in, and whether set-aside sentences are deleted or kept by default.
 
 ## Known limits
 

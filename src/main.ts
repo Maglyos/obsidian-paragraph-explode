@@ -1,5 +1,5 @@
 import { Editor, EditorPosition, Notice, Plugin } from 'obsidian';
-import { ApplyResult, ModalOptions, ReorderModal } from './modal';
+import { ModalOptions, ReorderModal } from './modal';
 import { checkSelection, findParagraph } from './paragraph';
 import { DEFAULT_SETTINGS, ParagraphExplodeSettings, ParagraphExplodeSettingTab } from './settings';
 import { splitPhrases, splitSentences, unwrapLines } from './splitter';
@@ -16,6 +16,7 @@ export default class ParagraphExplodePlugin extends Plugin {
 
 	async onload(): Promise<void> {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()) as ParagraphExplodeSettings;
+		delete (this.settings as { enterApplies?: unknown }).enterApplies; // replaced by defaultMode in 1.1.0
 		this.addSettingTab(new ParagraphExplodeSettingTab(this.app, this));
 
 		this.addCommand({
@@ -44,11 +45,12 @@ export default class ParagraphExplodePlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	private modalOptions(title: string): ModalOptions {
+	private modalOptions(editor: Editor, title: string): ModalOptions {
 		return {
 			title,
+			defaultMode: this.settings.defaultMode,
 			keepAsideByDefault: this.settings.setAsideDefault === 'keep',
-			enterApplies: this.settings.enterApplies,
+			eol: this.eol(editor),
 		};
 	}
 
@@ -60,8 +62,8 @@ export default class ParagraphExplodePlugin extends Plugin {
 		new ReorderModal(
 			this.app,
 			sentences,
-			(result) => this.write(editor, target, this.render(result, this.eol(editor))),
-			this.modalOptions('Explode paragraph'),
+			(text) => this.write(editor, target, text),
+			this.modalOptions(editor, 'Explode paragraph'),
 		).open();
 	}
 
@@ -84,8 +86,8 @@ export default class ParagraphExplodePlugin extends Plugin {
 		new ReorderModal(
 			this.app,
 			phrases,
-			(result) => this.write(editor, target, this.render(result, this.eol(editor))),
-			this.modalOptions('Explode into phrases'),
+			(text) => this.write(editor, target, text),
+			this.modalOptions(editor, 'Explode into phrases'),
 		).open();
 	}
 
@@ -114,12 +116,6 @@ export default class ParagraphExplodePlugin extends Plugin {
 			return null;
 		}
 		return sentences;
-	}
-
-	private render({ ordered, aside, mode, keepAside }: ApplyResult, eol: string): string {
-		const join = (parts: string[]) => (mode === 'exploded' ? parts.join(eol) : parts.join(' '));
-		const kept = keepAside && aside.length > 0 ? eol + eol + join(aside) : '';
-		return join(ordered) + kept;
 	}
 
 	/** The selection, or the blank-line-delimited paragraph under the cursor. Shows a Notice on failure. */
