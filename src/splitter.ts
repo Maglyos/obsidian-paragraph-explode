@@ -171,6 +171,8 @@ export interface PhraseOptions {
 	words?: readonly string[];
 	/** Extra abbreviations (lowercase, no trailing period) that never end a sentence. */
 	extraAbbreviations?: readonly string[];
+	/** Placeholder tokens (case-sensitive, like "XYZ") to isolate into their own pieces. */
+	placeholders?: readonly string[];
 }
 
 /**
@@ -199,7 +201,8 @@ function starterRegex(words: readonly string[]): RegExp | null {
 export function splitPhrases(text: string, options: PhraseOptions = {}): string[] {
 	const punctuation = options.punctuation ?? true;
 	const starter = starterRegex(options.words ?? DEFAULT_PHRASE_WORDS);
-	return splitSentences(text, options.extraAbbreviations).flatMap((s) => splitClauses(s, punctuation, starter));
+	const phrases = splitSentences(text, options.extraAbbreviations).flatMap((s) => splitClauses(s, punctuation, starter));
+	return isolatePlaceholders(phrases, options.placeholders ?? []);
 }
 
 function splitClauses(sentence: string, punctuation: boolean, starter: RegExp | null): string[] {
@@ -238,4 +241,111 @@ function startsPhraseWord(sentence: string, at: number, phraseStart: number, sta
 	if (!before) return false;
 	const previousWord = before.split(/\s+/).pop()?.toLowerCase() ?? '';
 	return !STARTER_BLOCKERS.has(previousWord) && !(matched === 'as' && AS_BLOCKERS.has(previousWord));
+}
+
+export const DEFAULT_PLACEHOLDERS: readonly string[] = ['XYZ', 'TBD', '___'];
+
+/** Parse a user-typed token list, keeping case ("XYZ, TBD"). */
+export function parseTokenList(input: string): string[] {
+	const tokens = input
+		.split(/[\s,;]+/)
+		.map((t) => t.trim())
+		.filter((t) => t.length > 0 && t.length <= 20);
+	return [...new Set(tokens)];
+}
+
+const PLACEHOLDER_TRAIL = /^[,;:.!?)\]"'”’]*/;
+
+/** True when `text` is just a placeholder, ignoring punctuation after it ("XYZ," counts). */
+export function isPlaceholder(text: string, placeholders: readonly string[]): boolean {
+	const bare = text.trim().replace(/[,;:.!?)\]"'”’]+$/, '');
+	return placeholders.includes(bare);
+}
+
+/** Give each placeholder its own piece ("to XYZ of the" becomes "to", "XYZ", "of the"). Punctuation stays with it. */
+export function isolatePlaceholders(pieces: readonly string[], placeholders: readonly string[]): string[] {
+	if (placeholders.length === 0) return [...pieces];
+	const escaped = [...placeholders]
+		.sort((a, b) => b.length - a.length)
+		.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+	const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${escaped.join('|')})(?![\\p{L}\\p{N}])`, 'gu');
+
+	return pieces.flatMap((piece) => {
+		const out: string[] = [];
+		let start = 0;
+		for (const m of piece.matchAll(re)) {
+			const end = m.index + m[0].length + (PLACEHOLDER_TRAIL.exec(piece.slice(m.index + m[0].length))?.[0].length ?? 0);
+			if (m.index < start) continue;
+			const before = piece.slice(start, m.index).trim();
+			if (before) out.push(before);
+			out.push(piece.slice(m.index, end));
+			start = end;
+		}
+		const tail = piece.slice(start).trim();
+		if (tail) out.push(tail);
+		return out.length > 0 ? out : [piece];
+	});
+}
+
+/** Split `text` around the selection [start, end): the pieces before, inside and after. Empty parts are dropped. */
+export function splitAround(text: string, start: number, end: number): { parts: string[]; middle: number } | null {
+	const before = text.slice(0, start).trim();
+	const inside = text.slice(start, end).trim();
+	const after = text.slice(end).trim();
+	if (!inside) return null;
+	const parts: string[] = [];
+	if (before) parts.push(before);
+	const middle = parts.length;
+	parts.push(inside);
+	if (after) parts.push(after);
+	return { parts, middle };
+}
+
+/** Matches a split mark, but not a doubled one ("~~strikethrough~~" is markdown, not a mark). */
+function markRegex(mark: string): RegExp {
+	const escaped = mark.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	if (mark.length !== 1) return new RegExp(escaped, 'g');
+	return new RegExp(`(?<!${escaped})${escaped}(?!${escaped})`, 'g');
+}
+
+export function hasMark(text: string, mark: string): boolean {
+	return mark.length > 0 && markRegex(mark).test(text);
+}
+
+const PUNCTUATION_ONLY = /^[.,;:!?…)\]"'”’]+$/;
+
+/** Split at your marks and delete them. Punctuation left alone after a mark rejoins the piece before it. */
+export function splitAtMarks(text: string, mark: string): string[] {
+	if (!mark) return [text.trim()].filter(Boolean);
+	const out: string[] = [];
+	for (const part of text.split(markRegex(mark)).map((p) => p.trim())) {
+		if (!part) continue;
+		const last = out.length - 1;
+		if (last >= 0 && PUNCTUATION_ONLY.test(part)) out[last] += part;
+		else out.push(part);
+	}
+	return out;
+}
+
+export interface ExplodeOptions extends PhraseOptions {
+	/** Manual split mark. Empty disables marks. */
+	mark?: string;
+	/** Split into phrases instead of sentences. */
+	phrases: boolean;
+}
+
+/**
+ * The pieces the reorder window starts from. If the text contains your split mark, the marks decide where
+ * the sentences they sit in are cut (and are removed); sentences without marks stay whole. Otherwise the
+ * text is split automatically into sentences, or into phrases.
+ */
+export function explodeText(text: string, options: ExplodeOptions): string[] {
+	const mark = options.mark ?? '';
+	if (hasMark(text, mark)) {
+		const pieces = splitSentences(text, options.extraAbbreviations).flatMap((s) =>
+			hasMark(s, mark) ? splitAtMarks(s, mark) : [s],
+		);
+		return options.phrases ? isolatePlaceholders(pieces, options.placeholders ?? []) : pieces;
+	}
+	return options.phrases ? splitPhrases(text, options) : splitSentences(text, options.extraAbbreviations);
 }

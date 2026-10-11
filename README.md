@@ -13,6 +13,7 @@ Run these from the command palette. Each works on your selection if you have one
 | **Explode paragraph** | Opens the reorder window with one entry per sentence. |
 | **Explode paragraph in place** | Rewrites the paragraph as one sentence per line, right in the editor. |
 | **Explode selection into phrases** | Like the first command, but splits your selection into phrases (commas, semicolons, colons, and words like "and", "but", "because"). Requires a selection. |
+| **Reorganize notes (selection or whole page)** | Opens a section tree of your notes so you can move sections and blocks around. See *Reorganize notes* below. |
 | **Collapse exploded lines back into a paragraph** | Joins the lines of an exploded paragraph back into one. |
 
 ## The reorder window
@@ -32,6 +33,18 @@ Pick pieces from **Remaining** to build the **New order**, then Apply. A **Previ
 - Drag items in the New order to reorder them. Drag one back onto *Remaining*, or press *Put back*.
 - *Set aside* parks a piece. Set-aside pieces can be clicked to bring them back, and are deleted or kept below the result when you apply.
 
+**Cut where you choose: split marks**
+- Type a mark (default `~`) into your text wherever you want a cut, select it, and run any explode command. Example: `Genetic differences ~ are thought to contribute to~ the lions share ~of the liability for autism,~ with estimated heritability as responsible for 50-90% of the vulnerability to the disorder~.`
+- The text is cut only at your marks, and **the marks are deleted** from the pieces and from the result. Anything you type next to a mark (a comma, a period) stays with the piece before it.
+- If the text has marks, sentences without marks stay whole. If it has none, the usual automatic splitting is used.
+- A doubled mark (`~~strikethrough~~`) is ignored. Change or turn off the mark in the settings.
+
+**Drafting: rewrite parts of a sentence**
+- *Edit* (or double-click a piece) turns it into a text box. Rewrite it and press Save (or Enter). Esc cancels the edit. Everything is undoable.
+- To rewrite only part of a piece, select that text in the box and click *Split out selection*. The piece becomes up to three (before, selection, after), and the selection opens for editing.
+- **Placeholders** such as `XYZ` get their own piece automatically in *Explode selection into phrases*, are highlighted, and are counted under the lists until you rewrite them. Example: "Genetic factors are thought to contribute to XYZ of the liability for autism." becomes three pieces: `Genetic factors are thought to contribute to`, `XYZ`, and `of the liability for autism.` Edit `XYZ` into your own words and Apply.
+- Which words count as placeholders is a setting (default `XYZ, TBD, ___`, case-sensitive).
+
 **Notes mode**
 - *Group*: select items (click, Shift+click for a range, Cmd/Ctrl+click to add) and merge them into one note. *Ungroup* splits them again.
 - *New note*: press it (or `N`), then click pieces. They all join one note. Press `N` again to start the next note, and twice to stop.
@@ -39,6 +52,33 @@ Pick pieces from **Remaining** to build the **New order**, then Apply. A **Previ
 - *H1*, *H2*, *H3* (or `H` to cycle) turn the selected items into `#`, `##` or `###` headings, and *Bullet* turns them back. Headings are written without a bullet. They only appear in Notes mode; in the other modes they are written as normal text.
 
 **Keys**: `1`-`9` pick the remaining piece with that number; `Backspace` undoes the last change; `Enter` applies; `Esc` cancels; `N`, `G`, `U`, `H`, `Tab`, `Shift+Tab` for notes as above; `Alt+Up` / `Alt+Down` move the selected item.
+
+## Reorganize notes
+
+Select any stretch of notes, or select nothing to use the whole page (frontmatter is left alone), and run **Reorganize notes (selection or whole page)**. Your notes are split into blocks: headings, paragraphs, bullets (each top-level bullet with its nested bullets), quotes and callouts, code, tables and dividers.
+
+**Seeing the structure**
+- Headings are bold, colored by level, and carry an `H1`-`H6` badge. Everything under a heading is indented beneath it, so sections and subsections read as a tree.
+- Click the arrow (or double-click a heading) to collapse a section. **Show** collapses everything to *All sections*, *H1*, *H2* or *H3* so you can see just the outline, and *Expand all* opens it back up.
+- A heading that skips a level (an H3 directly under an H1) is marked *level skipped*.
+
+**Reorganizing**
+- Drag a row's handle to move it. **Moving a heading moves its whole section**, including the subsections inside it.
+- Click to select; Shift+click selects a range, Cmd/Ctrl+click adds. Selected blocks move together. **Up** and **Down** (or Alt+Up/Down) move the selection one step; for a section that means hopping over the neighboring section.
+- **Promote** and **Demote** (Shift+Tab / Tab) change heading levels. A section's subsections shift with it, and nothing moves if a level would leave H1-H6.
+- Undo (Cmd/Ctrl+Z), Reset, and a **Preview the result** panel. Apply writes everything as one edit, so one undo in the note restores it.
+
+**Formatting**: choose what survives when the notes are written back.
+
+| Choice | Result |
+| --- | --- |
+| **Keep all formatting** | Your text is written back exactly as it was. |
+| **Choose what to keep** | Tick the kinds to keep: headings and dividers, bullets and numbers, bold/italic/highlight, links, code and math, quotes and callouts, tables, footnotes and citations. Anything unticked becomes plain text. |
+| **Plain text** | No formatting at all: headings become plain lines, bullets become lines, links become their text, tables become `cell; cell` lines, and so on. |
+
+The window shows each block as it will be written, so the effect is visible before you apply. Your choice is remembered.
+
+Notes: blank lines between blocks are normalized (runs of blank lines become one), and a moved block is separated from its new neighbors by a blank line. Underlined (setext) headings are treated as paragraphs; use `#` headings.
 
 ## What it protects
 
@@ -53,7 +93,9 @@ Headings, code blocks, tables, frontmatter, lists and quotes are skipped with a 
 ## Settings
 
 - **Extra abbreviations**: words ending in a period that should never end a sentence.
-- **Phrases**: toggle splitting at punctuation and at conjunction words, and edit the word list.
+- **Reorganize notes**: the default formatting choice.
+- **Split marks**: the mark you type to cut your own text (default `~`).
+- **Phrases**: toggle splitting at punctuation and at conjunction words, edit the word list, and set the placeholder words.
 - **Reorder window**: the mode the window opens in, and whether set-aside sentences are deleted or kept by default.
 
 ## Known limits

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseWordList, splitPhrases, splitSentences, unwrapLines } from '../src/splitter';
+import { explodeText, hasMark, splitAtMarks, isPlaceholder, parseTokenList, parseWordList, splitAround, splitPhrases, splitSentences, unwrapLines } from '../src/splitter';
 
 const split = splitSentences;
 
@@ -221,5 +221,86 @@ describe('parseWordList', () => {
 	it('splits on commas, semicolons and whitespace, lowercases, dedupes and drops junk', () => {
 		expect(parseWordList('And, but;  Because\nbut Univ. (bad) x')).toEqual(['and', 'but', 'because', 'univ', 'x']);
 		expect(parseWordList('')).toEqual([]);
+	});
+});
+
+describe('placeholders and selection splitting', () => {
+	const sentence = 'Genetic factors are thought to contribute to XYZ of the liability for autism.';
+	it('isolates a placeholder as its own phrase', () => {
+		expect(splitPhrases(sentence, { placeholders: ['XYZ'] })).toEqual([
+			'Genetic factors are thought to contribute to',
+			'XYZ',
+			'of the liability for autism.',
+		]);
+	});
+	it('keeps trailing punctuation with the placeholder and leaves other text alone', () => {
+		expect(splitPhrases('It was XYZ, and then TBD.', { placeholders: ['XYZ', 'TBD'], words: [] })).toEqual([
+			'It was',
+			'XYZ,',
+			'and then',
+			'TBD.',
+		]);
+		expect(splitPhrases('XYZZY and abcXYZ stay.', { placeholders: ['XYZ'], words: [] })).toEqual(['XYZZY and abcXYZ stay.']);
+	});
+	it('does nothing without placeholders', () => {
+		expect(splitPhrases(sentence, { words: [] })).toEqual([sentence]);
+	});
+	it('recognizes placeholder pieces', () => {
+		expect(isPlaceholder('XYZ', ['XYZ'])).toBe(true);
+		expect(isPlaceholder('XYZ,', ['XYZ'])).toBe(true);
+		expect(isPlaceholder('to XYZ', ['XYZ'])).toBe(false);
+	});
+	it('parses a case-preserving token list', () => {
+		expect(parseTokenList('XYZ, TBD ___;XYZ')).toEqual(['XYZ', 'TBD', '___']);
+	});
+	it('splits around a selection and drops empty parts', () => {
+		const t = 'contribute to XYZ of the liability';
+		expect(splitAround(t, 14, 17)).toEqual({ parts: ['contribute to', 'XYZ', 'of the liability'], middle: 1 });
+		expect(splitAround(t, 0, 10)).toEqual({ parts: ['contribute', 'to XYZ of the liability'], middle: 0 });
+		expect(splitAround(t, 0, t.length)).toEqual({ parts: [t], middle: 0 });
+		expect(splitAround(t, 3, 3)).toBeNull();
+	});
+});
+
+describe('split marks', () => {
+	const typed =
+		'Genetic differences ~ are thought to contribute to~ the lions share ~of the liability for autism,~ with estimated heritability as responsible for 50-90% of the vulnerability to the disorder~.';
+	it('cuts at marks, deletes them, and trims', () => {
+		expect(explodeText(typed, { phrases: true, mark: '~' })).toEqual([
+			'Genetic differences',
+			'are thought to contribute to',
+			'the lions share',
+			'of the liability for autism,',
+			'with estimated heritability as responsible for 50-90% of the vulnerability to the disorder.',
+		]);
+	});
+	it('uses marks in the sentence command too, and keeps unmarked sentences whole', () => {
+		expect(explodeText('One ~ two. Three, and four. Five~ six.', { phrases: false, mark: '~' })).toEqual([
+			'One',
+			'two.',
+			'Three, and four.',
+			'Five',
+			'six.',
+		]);
+	});
+	it('ignores doubled tildes (markdown strikethrough)', () => {
+		expect(hasMark('a ~~struck~~ word', '~')).toBe(false);
+		expect(explodeText('a ~~struck~~ word, and more.', { phrases: false, mark: '~' })).toEqual(['a ~~struck~~ word, and more.']);
+	});
+	it('falls back to automatic splitting without marks, or with the mark disabled', () => {
+		expect(explodeText('One, and two. Three.', { phrases: true, mark: '~' })).toEqual(['One,', 'and two.', 'Three.']);
+		expect(explodeText('A ~ b. C.', { phrases: false, mark: '' })).toEqual(['A ~ b.', 'C.']);
+	});
+	it('supports a different or multi-character mark', () => {
+		expect(splitAtMarks('a || b || c', '||')).toEqual(['a', 'b', 'c']);
+		expect(splitAtMarks('a / b.', '/')).toEqual(['a', 'b.']);
+	});
+	it('still isolates placeholders in marked phrase mode', () => {
+		expect(explodeText('Up to XYZ of it ~ is true.', { phrases: true, mark: '~', placeholders: ['XYZ'] })).toEqual([
+			'Up to',
+			'XYZ',
+			'of it',
+			'is true.',
+		]);
 	});
 });

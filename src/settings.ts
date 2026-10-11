@@ -1,7 +1,8 @@
 import { App, PluginSettingTab, Setting, SettingDefinition, SettingDefinitionItem } from 'obsidian';
 import type ParagraphExplodePlugin from './main';
+import { FormatKeep, FormatMode, KEEP_ALL } from './format';
 import type { Mode } from './outline';
-import { DEFAULT_PHRASE_WORDS, parseWordList } from './splitter';
+import { DEFAULT_PHRASE_WORDS, DEFAULT_PLACEHOLDERS, parseTokenList, parseWordList } from './splitter';
 
 export interface ParagraphExplodeSettings {
 	/** Phrase mode: split after commas, semicolons and colons. */
@@ -9,10 +10,18 @@ export interface ParagraphExplodeSettings {
 	/** Phrase mode: split before conjunction-like words. */
 	splitAtWords: boolean;
 	phraseWords: string[];
+	/** Typed into your text to mark where to cut, such as ~. It is deleted from the result. Empty turns it off. */
+	separatorMark: string;
+	/** Tokens such as "XYZ" that stand in for text you will write yourself. Case-sensitive. */
+	placeholders: string[];
 	/** Abbreviations (lowercase, no trailing period) that never end a sentence. */
 	extraAbbreviations: string[];
 	/** What the reorder window does with set-aside sentences by default. */
 	setAsideDefault: 'delete' | 'keep';
+	/** Reorganize notes: how much formatting is kept when blocks are written back. */
+	formatMode: FormatMode;
+	/** Reorganize notes: what "Choose what to keep" keeps. Remembered from the window. */
+	formatKeep: FormatKeep;
 	/** The mode the reorder window opens in. */
 	defaultMode: Mode;
 }
@@ -22,7 +31,11 @@ export const DEFAULT_SETTINGS: ParagraphExplodeSettings = {
 	splitAtWords: true,
 	phraseWords: [...DEFAULT_PHRASE_WORDS],
 	extraAbbreviations: [],
+	separatorMark: '~',
+	placeholders: [...DEFAULT_PLACEHOLDERS],
 	setAsideDefault: 'delete',
+	formatMode: 'all',
+	formatKeep: { ...KEEP_ALL },
 	defaultMode: 'paragraph',
 };
 
@@ -50,6 +63,17 @@ export class ParagraphExplodeSettingTab extends PluginSettingTab {
 			},
 			{
 				type: 'group',
+				heading: 'Split marks',
+				items: [
+					{
+						name: 'Split mark',
+						desc: 'Type this mark into your text where you want it cut, for example "one ~ two ~ three". The sentence commands then cut only at your marks, and the marks are deleted from the result. Leave empty to turn off. A doubled mark (like ~~strikethrough~~) is ignored.',
+						control: { type: 'text', key: 'separatorMark', placeholder: '~' },
+					},
+				],
+			},
+			{
+				type: 'group',
 				heading: 'Phrases',
 				items: [
 					{
@@ -68,6 +92,11 @@ export class ParagraphExplodeSettingTab extends PluginSettingTab {
 						control: { type: 'textarea', key: 'phraseWords' },
 					},
 					{
+						name: 'Placeholders',
+						desc: 'Words that stand in for text you will write yourself, such as XYZ. Phrase mode gives each one its own piece so you can rewrite it. Case-sensitive; separate with commas.',
+						control: { type: 'textarea', key: 'placeholders', placeholder: 'XYZ, TBD' },
+					},
+					{
 						name: 'Restore the default words',
 						desc: 'Reset the conjunction words to the built-in list.',
 						action: () => {
@@ -75,6 +104,21 @@ export class ParagraphExplodeSettingTab extends PluginSettingTab {
 							void this.plugin.saveSettings();
 							// update() exists from Obsidian 1.13; older versions re-render via display().
 							(this as { update?: () => void }).update?.();
+						},
+					},
+				],
+			},
+			{
+				type: 'group',
+				heading: 'Reorganize notes',
+				items: [
+					{
+						name: 'Formatting',
+						desc: 'What happens to bold, links, bullets, headings and so on when notes are written back. You can change this, and pick exactly what to keep, inside the window.',
+						control: {
+							type: 'dropdown',
+							key: 'formatMode',
+							options: { all: 'Keep all formatting', selected: 'Choose what to keep', none: 'Plain text' },
 						},
 					},
 				],
@@ -115,8 +159,14 @@ export class ParagraphExplodeSettingTab extends PluginSettingTab {
 		const settings = this.plugin.settings;
 		if (key === 'phraseWords' || key === 'extraAbbreviations') {
 			settings[key] = parseWordList(String(value));
+		} else if (key === 'separatorMark') {
+			settings.separatorMark = String(value).replace(/\s+/g, '').slice(0, 3);
+		} else if (key === 'placeholders') {
+			settings.placeholders = parseTokenList(String(value));
 		} else if (key === 'setAsideDefault') {
 			settings.setAsideDefault = value === 'keep' ? 'keep' : 'delete';
+		} else if (key === 'formatMode') {
+			settings.formatMode = value === 'selected' || value === 'none' ? value : 'all';
 		} else if (key === 'defaultMode') {
 			settings.defaultMode = value === 'sentence' || value === 'notes' ? value : 'paragraph';
 		} else if (key === 'splitAtPunctuation' || key === 'splitAtWords') {
